@@ -1,0 +1,44 @@
+# lstm_price_predictor.py
+
+import pandas as pd
+import numpy as np
+import torch
+from torch import nn
+
+class LSTMModel(nn.Module):
+    def __init__(self, input_size=1, hidden_size=50):
+        super().__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size)
+        self.linear = nn.Linear(hidden_size, 1)
+    def forward(self, x):
+        out, _ = self.lstm(x)
+        return self.linear(out[-1])
+
+def predict_with_lstm(filepath):
+    df = pd.read_csv(filepath)
+    data = df['Close'].values[-60:].reshape(-1, 1)
+    data = torch.tensor(data, dtype=torch.float32).unsqueeze(1)
+    model = LSTMModel()
+    with torch.no_grad():
+        pred = model(data)
+    return pred.item()
+
+
+# ppo_trading_agent.py
+
+class PPOTradingAgent:
+    def __init__(self):
+        print("[PPO] 初始化交易代理")
+
+    def run(self, price_prediction, sentiment_path):
+        print(f"[PPO] 接收到股價預測：{price_prediction}")
+        with open(sentiment_path, "r", encoding="utf-8") as f:
+            sentiments = json.load(f)
+        score = sum(1 if s['sentiment'] == '正面' else -1 if s['sentiment'] == '負面' else 0 for s in sentiments)
+        print(f"[PPO] 綜合新聞情緒分數：{score}")
+        if price_prediction > 0 and score >= 0:
+            print("[PPO] 執行：買進")
+        elif price_prediction < 0 and score < 0:
+            print("[PPO] 執行：賣出")
+        else:
+            print("[PPO] 執行：觀望")
