@@ -1,0 +1,52 @@
+# stock_data_fetcher.py
+
+import yfinance as yf
+import pandas as pd
+
+def fetch_stock_data_yfinance(ticker, start_date, end_date):
+    df = yf.download(ticker, start=start_date, end=end_date)
+    df.to_csv("data/stock_data.csv")
+    print(f"[Stock Data] 已下載 {ticker} 資料")
+
+
+# news_scraper.py
+
+import requests
+from bs4 import BeautifulSoup
+import json
+
+def scrape_news(keyword):
+    url = f"https://news.cnyes.com/search?keyword={keyword}"
+    resp = requests.get(url)
+    soup = BeautifulSoup(resp.text, "html.parser")
+    results = []
+    for article in soup.select(".sc-16r8icm-0 article")[:10]:
+        title = article.text.strip()
+        results.append({"title": title})
+    with open("data/news_data.json", "w", encoding="utf-8") as f:
+        json.dump(results, f, ensure_ascii=False)
+    print("[News] 鉅亨網新聞爬取完成")
+
+
+# sentiment_analyzer.py
+
+import openai
+import json
+from config.settings import OPENAI_API_KEY
+
+def analyze_news_sentiment(input_path, output_path):
+    openai.api_key = OPENAI_API_KEY
+    with open(input_path, "r", encoding="utf-8") as f:
+        news_list = json.load(f)
+    results = []
+    for news in news_list:
+        prompt = f"請判斷這則新聞標題的情緒為正面、中立或負面：{news['title']}"
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        sentiment = response.choices[0].message.content.strip()
+        results.append({"title": news["title"], "sentiment": sentiment})
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(results, f, ensure_ascii=False)
+    print("[Sentiment] 新聞情緒分析完成")
